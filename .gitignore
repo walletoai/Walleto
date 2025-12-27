@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment files - NEVER COMMIT THESE
+.env
+.env.local
+.env.production
+.env.*
+**/.env
+
+# Secrets file - NEVER COMMIT
+deploy-secrets.sh
+*-secrets.sh
+secrets/
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test databases
+*.db
+
+# Keys and credentials
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Setup script (contains git commands, not needed in repo)
+setup_github.sh

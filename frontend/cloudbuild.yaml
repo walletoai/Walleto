@@ -1,0 +1,76 @@
+# Cloud Build configuration for Walleto Frontend
+# Deploy to Google Cloud Run
+#
+# Set substitution variables in Cloud Build Triggers or via CLI.
+#
+# Required substitutions:
+#   _VITE_SUPABASE_URL - Your Supabase project URL
+#   _VITE_SUPABASE_ANON_KEY - Your Supabase anon key (public)
+#   _VITE_API_URL - Your backend API URL
+
+steps:
+  # Build the container image with build args
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_SUPABASE_URL=${_VITE_SUPABASE_URL}'
+      - '--build-arg'
+      - 'VITE_SUPABASE_ANON_KEY=${_VITE_SUPABASE_ANON_KEY}'
+      - '--build-arg'
+      - 'VITE_API_URL=${_VITE_API_URL}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/walleto-app:${_TAG}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/walleto-app:latest'
+      - '.'
+
+  # Push the container images
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/walleto-app:${_TAG}'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/walleto-app:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'walleto-app'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/walleto-app:${_TAG}'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '256Mi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/walleto-app:${_TAG}'
+  - 'gcr.io/$PROJECT_ID/walleto-app:latest'
+
+# Substitution variables - SET THESE IN CLOUD BUILD TRIGGERS OR CLI
+substitutions:
+  _TAG: 'v1'
+  _VITE_SUPABASE_URL: ''      # Set in Cloud Build trigger
+  _VITE_SUPABASE_ANON_KEY: '' # Set in Cloud Build trigger
+  _VITE_API_URL: ''           # Set in Cloud Build trigger
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY

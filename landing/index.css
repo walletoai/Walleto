@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --leather-dark: #1a120b;
+  --leather-medium: #2c1e12;
+  --gold-accent: #d4a373;
+  --gold-dim: #8b5e3c;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--leather-dark);
+  color: #e5e5e5;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, .font-serif {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Leather Texture overlay */
+.bg-leather {
+  background-color: var(--leather-dark);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(212, 163, 115, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #8b5e3c;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d4a373;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Stitching Animation */
+@keyframes stitch {
+  0% { background-position: 0 0, 0 100%, 0 0, 100% 0; }
+  100% { background-position: 40px 0, -40px 100%, 0 -40px, 100% 40px; }
+}
+
+.stitch-border {
+  background-image: linear-gradient(90deg, #d4a373 50%, transparent 50%),
+                    linear-gradient(90deg, #d4a373 50%, transparent 50%),
+                    linear-gradient(0deg, #d4a373 50%, transparent 50%),
+                    linear-gradient(0deg, #d4a373 50%, transparent 50%);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-size: 15px 2px, 15px 2px, 2px 15px, 2px 15px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  animation: stitch 12s linear infinite;
+}
+
+/* Infinite Scroll Ticker */
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-scroll {
+  animation: scroll 40s linear infinite;
+}
+
+/* Floating Particles */
+@keyframes floatUp {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+.particle {
+  position: absolute;
+  background: var(--gold-accent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: floatUp linear infinite;
+}
+
+/* Spotlight */
+.spotlight-layer {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: radial-gradient(
+    600px circle at var(--mouse-x) var(--mouse-y),
+    rgba(212, 163, 115, 0.07),
+    transparent 40%
+  );
+}
+
+/* Gold Glow */
+.text-gold-glow {
+  text-shadow: 0 0 15px rgba(212, 163, 115, 0.3);
+}
+
+/* 3D Laptop Effect */
+.perspective-2000 {
+  perspective: 2000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-x-90 {
+  transform: rotateX(90deg);
+}
+
+.rotate-x-neg-90 {
+  transform: rotateX(-90deg);
+}
+
+.origin-bottom {
+  transform-origin: bottom;
+}
+
+/* Screen Glitch Effect */
+@keyframes glitch-skew {
+  0% { transform: skew(0deg); }
+  20% { transform: skew(-2deg); }
+  40% { transform: skew(2deg); }
+  60% { transform: skew(-1deg); }
+  80% { transform: skew(1deg); }
+  100% { transform: skew(0deg); }
+}
+
+@keyframes turn-on {
+  0% { transform: scale(1, 0.8) translate3d(0, 0, 0); opacity: 0; filter: brightness(30); }
+  10% { transform: scale(1, 1) translate3d(0, 100%, 0); opacity: 1; filter: brightness(10); }
+  40% { transform: scale(1, 1) translate3d(0, -100%, 0); opacity: 1; filter: brightness(5); }
+  100% { transform: scale(1, 1) translate3d(0, 0, 0); opacity: 1; filter: brightness(1); }
+}
+
+.screen-glitch {
+  animation: turn-on 0.4s linear forwards;
+}
+
+/* Live Pulse */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+.live-dot::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background-color: inherit;
+  border-radius: 50%;
+  z-index: -1;
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}

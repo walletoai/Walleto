@@ -1,0 +1,26 @@
+.strategy-builder {
+  padding: 20px;
+  border-radius: 12px;
+  background: #101015;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.sb-section {
+  margin-bottom: 20px;
+}
+
+.sb-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.strategy-builder select,
+.strategy-builder input {
+  padding: 5px;
+}
+
+.strategy-builder button {
+  padding: 6px 12px;
+}
