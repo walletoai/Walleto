@@ -1,0 +1,78 @@
+# Cloud Build configuration for Walleto Backend API
+# Deploy to Google Cloud Run
+#
+# IMPORTANT: Set these substitution variables in Cloud Build Triggers
+# or pass them via command line. DO NOT hardcode secrets here.
+#
+# Required substitutions:
+#   _SUPABASE_URL - Your Supabase project URL
+#   _SUPABASE_KEY - Your Supabase service role key (SECRET)
+#   _ANTHROPIC_API_KEY - Your Anthropic API key (SECRET)
+#   _ENCRYPTION_KEY - Your encryption key (SECRET)
+#   _ADMIN_API_KEY - Your admin API key (SECRET)
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/walleto-api:${_TAG}'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/walleto-api:latest'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/walleto-api:${_TAG}'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/walleto-api:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'walleto-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/walleto-api:${_TAG}'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},ANTHROPIC_API_KEY=${_ANTHROPIC_API_KEY},ENCRYPTION_KEY=${_ENCRYPTION_KEY},ADMIN_API_KEY=${_ADMIN_API_KEY}'
+
+# Store images in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/walleto-api:${_TAG}'
+  - 'gcr.io/$PROJECT_ID/walleto-api:latest'
+
+# Substitution variables - SET THESE IN CLOUD BUILD TRIGGERS OR CLI
+# Example: gcloud builds submit --substitutions=_SUPABASE_KEY=xxx,...
+substitutions:
+  _TAG: 'v1'
+  _SUPABASE_URL: ''      # Set in Cloud Build trigger
+  _SUPABASE_KEY: ''      # Set in Cloud Build trigger (SECRET)
+  _ANTHROPIC_API_KEY: '' # Set in Cloud Build trigger (SECRET)
+  _ENCRYPTION_KEY: ''    # Set in Cloud Build trigger (SECRET)
+  _ADMIN_API_KEY: ''     # Set in Cloud Build trigger (SECRET)
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY

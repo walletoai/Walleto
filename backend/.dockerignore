@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env.local
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+*.db
+*.sqlite
+coach_test.db
+pnl_tracker.db
+
+# Local config (we'll use Cloud Run environment variables)
+.env
+
+# Documentation
+*.md
+docs/
+
+# Data files only (not code)
+collector/
