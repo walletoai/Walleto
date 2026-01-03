@@ -10,6 +10,7 @@
 #   _ANTHROPIC_API_KEY - Your Anthropic API key (SECRET)
 #   _ENCRYPTION_KEY - Your encryption key (SECRET)
 #   _ADMIN_API_KEY - Your admin API key (SECRET)
+#   _SENDGRID_API_KEY - Your SendGrid API key (SECRET)
 
 steps:
   # Build the container image
@@ -56,7 +57,7 @@ steps:
       - '--max-instances'
       - '10'
       - '--set-env-vars'
-      - 'SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},ANTHROPIC_API_KEY=${_ANTHROPIC_API_KEY},ENCRYPTION_KEY=${_ENCRYPTION_KEY},ADMIN_API_KEY=${_ADMIN_API_KEY}'
+      - 'SUPABASE_URL=${_SUPABASE_URL},SUPABASE_KEY=${_SUPABASE_KEY},ANTHROPIC_API_KEY=${_ANTHROPIC_API_KEY},ENCRYPTION_KEY=${_ENCRYPTION_KEY},ADMIN_API_KEY=${_ADMIN_API_KEY},SENDGRID_API_KEY=${_SENDGRID_API_KEY}'
 
 # Store images in Container Registry
 images:
@@ -67,11 +68,12 @@ images:
 # Example: gcloud builds submit --substitutions=_SUPABASE_KEY=xxx,...
 substitutions:
   _TAG: 'v1'
-  _SUPABASE_URL: ''      # Set in Cloud Build trigger
-  _SUPABASE_KEY: ''      # Set in Cloud Build trigger (SECRET)
-  _ANTHROPIC_API_KEY: '' # Set in Cloud Build trigger (SECRET)
-  _ENCRYPTION_KEY: ''    # Set in Cloud Build trigger (SECRET)
-  _ADMIN_API_KEY: ''     # Set in Cloud Build trigger (SECRET)
+  _SUPABASE_URL: ''       # Set in Cloud Build trigger
+  _SUPABASE_KEY: ''       # Set in Cloud Build trigger (SECRET)
+  _ANTHROPIC_API_KEY: ''  # Set in Cloud Build trigger (SECRET)
+  _ENCRYPTION_KEY: ''     # Set in Cloud Build trigger (SECRET)
+  _ADMIN_API_KEY: ''      # Set in Cloud Build trigger (SECRET)
+  _SENDGRID_API_KEY: ''   # Set in Cloud Build trigger (SECRET)
 
 # Build options
 options:

@@ -31,5 +31,8 @@ anthropic>=0.40.0
 # Supabase
 supabase>=2.0.0
 
+# Email
+sendgrid>=6.10.0
+
 # Form handling
 python-multipart

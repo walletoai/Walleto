@@ -15,6 +15,12 @@ from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, EmailStr
 from supabase import create_client
 
+from app.services.email_service import (
+    send_waitlist_confirmation,
+    send_invite_code,
+    send_welcome_email
+)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/invite", tags=["invite"])
@@ -105,6 +111,13 @@ async def join_waitlist(request: WaitlistRequest):
         position = count.count if count.count else 1
 
         logger.info(f"New waitlist signup: {request.email}")
+
+        # Send confirmation email
+        await send_waitlist_confirmation(
+            email=request.email.lower(),
+            name=request.name,
+            position=position
+        )
 
         return {
             "success": True,
@@ -256,13 +269,23 @@ async def generate_invite_code_admin(
 
         logger.info(f"Generated invite code: {code}")
 
+        # Send invite email if email is specified
+        email_sent = False
+        if request.email:
+            email_sent = await send_invite_code(
+                email=request.email.lower(),
+                code=code,
+                expires_at=expires_at
+            )
+
         return {
             "success": True,
             "code": code,
             "email": request.email,
             "max_uses": request.max_uses,
             "expires_at": expires_at,
-            "note": request.note
+            "note": request.note,
+            "email_sent": email_sent
         }
 
     except Exception as e:
@@ -405,3 +428,34 @@ async def deactivate_code(
     except Exception as e:
         logger.error(f"Deactivate code error: {e}")
         raise HTTPException(status_code=500, detail="Failed to deactivate code")
+
+
+# ============ Email Endpoints ============
+
+class WelcomeEmailRequest(BaseModel):
+    email: EmailStr
+    name: Optional[str] = None
+
+
+@router.post("/welcome-email")
+async def send_welcome(request: WelcomeEmailRequest):
+    """
+    Send welcome email after successful signup.
+    Called by frontend after user completes registration.
+    """
+    try:
+        success = await send_welcome_email(
+            email=request.email.lower(),
+            name=request.name
+        )
+
+        if success:
+            logger.info(f"Welcome email sent to {request.email}")
+            return {"success": True, "message": "Welcome email sent"}
+        else:
+            logger.warning(f"Failed to send welcome email to {request.email}")
+            return {"success": False, "message": "Email service unavailable"}
+
+    except Exception as e:
+        logger.error(f"Welcome email error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send welcome email")

@@ -105,6 +105,7 @@ This document provides context for AI assistants working on the Walleto codebase
 | supabase_client.py | Supabase REST wrapper (624 lines) |
 | exchange_service.py | Exchange abstraction (631 lines) |
 | encryption.py | API key encryption |
+| email_service.py | SendGrid email integration (waitlist, invite, welcome emails) |
 
 ### Database Models
 1. **Candles** - OHLCV price data
@@ -157,6 +158,8 @@ SUPABASE_JWT_SECRET=
 ENCRYPTION_KEY=
 ADMIN_API_KEY=
 DATABASE_URL=
+SENDGRID_API_KEY=     # For transactional emails
+FROM_EMAIL=noreply@walleto.ai
 ```
 
 ### Frontend (.env)
