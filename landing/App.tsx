@@ -434,7 +434,9 @@ const ComingSoonModal: React.FC<{ isOpen: boolean; onClose: () => void; onEarlyA
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (!email || !email.includes('@')) return;
+    // Proper email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email.trim())) return;
 
     setStatus('LOADING');
 

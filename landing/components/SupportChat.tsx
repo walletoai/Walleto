@@ -51,9 +51,16 @@ export const SupportChat: React.FC<SupportChatProps> = ({ isOpen, setIsOpen }) =
   };
 
   const handleSend = async () => {
-    if (!query.trim()) return;
+    const trimmedQuery = query.trim();
 
-    const userMsg: Message = { id: Date.now(), role: 'user', text: query };
+    // Validate query
+    if (!trimmedQuery) return;
+    if (trimmedQuery.length > 1000) {
+      setMessages(prev => [...prev, { id: Date.now(), role: 'bot', text: 'Please keep your message under 1000 characters.' }]);
+      return;
+    }
+
+    const userMsg: Message = { id: Date.now(), role: 'user', text: trimmedQuery };
     setMessages(prev => [...prev, userMsg]);
     setQuery('');
     setIsTyping(true);
@@ -69,8 +76,35 @@ export const SupportChat: React.FC<SupportChatProps> = ({ isOpen, setIsOpen }) =
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(ticketForm.email.trim())) {
+      setSubmitError("Please enter a valid email address.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate field lengths
+    if (ticketForm.name.trim().length < 2 || ticketForm.name.trim().length > 100) {
+      setSubmitError("Name must be 2-100 characters.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (ticketForm.subject.trim().length < 5 || ticketForm.subject.trim().length > 200) {
+      setSubmitError("Subject must be 5-200 characters.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (ticketForm.message.trim().length < 10 || ticketForm.message.trim().length > 5000) {
+      setSubmitError("Message must be 10-5000 characters.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const newTicket = await createTicket(ticketForm.name, ticketForm.email, ticketForm.subject, ticketForm.message);
+      const newTicket = await createTicket(ticketForm.name.trim(), ticketForm.email.trim(), ticketForm.subject.trim(), ticketForm.message.trim());
       setLastCreatedTicket(newTicket);
       setTicketForm({ name: '', email: '', subject: '', message: '' }); // Reset form
     } catch (error) {
