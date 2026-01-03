@@ -115,8 +115,7 @@ async def join_waitlist(request: WaitlistRequest):
         # Send confirmation email
         await send_waitlist_confirmation(
             email=request.email.lower(),
-            name=request.name,
-            position=position
+            name=request.name
         )
 
         return {

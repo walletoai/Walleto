@@ -107,11 +107,10 @@ def get_base_template(content: str, preview_text: str = "") -> str:
 '''
 
 
-def get_waitlist_confirmation_template(name: Optional[str] = None, position: int = 0) -> tuple[str, str]:
+def get_waitlist_confirmation_template(name: Optional[str] = None) -> tuple[str, str]:
     """Returns (subject, html_content) for waitlist confirmation email"""
 
     greeting = f"Hi {name}," if name else "Hi there,"
-    position_text = f"You're <span style='color: #d4af37; font-weight: 600;'>#{position}</span> on the waitlist." if position > 0 else ""
 
     content = f'''
         <h2 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #ffffff;">
@@ -129,7 +128,7 @@ def get_waitlist_confirmation_template(name: Optional[str] = None, position: int
         </p>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a3a3a3;">
-            {position_text} We're rolling out access in waves, and you'll be among the first
+            We're rolling out access in waves, and you'll be among the first
             to experience what we've been building.
         </p>
 
@@ -366,11 +365,10 @@ async def send_email(
 
 async def send_waitlist_confirmation(
     email: str,
-    name: Optional[str] = None,
-    position: int = 0
+    name: Optional[str] = None
 ) -> bool:
     """Send waitlist confirmation email"""
-    subject, html = get_waitlist_confirmation_template(name, position)
+    subject, html = get_waitlist_confirmation_template(name)
     return await send_email(email, subject, html, name)
 
 
