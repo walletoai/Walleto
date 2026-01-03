@@ -159,7 +159,7 @@ ENCRYPTION_KEY=
 ADMIN_API_KEY=
 DATABASE_URL=
 SENDGRID_API_KEY=     # For transactional emails
-FROM_EMAIL=noreply@walleto.ai
+FROM_EMAIL=support@walleto.ai
 ```
 
 ### Frontend (.env)

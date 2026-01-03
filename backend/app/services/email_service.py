@@ -12,7 +12,7 @@ from sendgrid.helpers.mail import Mail, Email, To, Content, HtmlContent
 logger = logging.getLogger(__name__)
 
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@walleto.ai")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "support@walleto.ai")
 FROM_NAME = os.getenv("FROM_NAME", "Walleto")
 
 # Initialize SendGrid client
