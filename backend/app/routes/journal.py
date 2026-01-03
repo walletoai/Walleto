@@ -3,12 +3,13 @@ Journal API routes for trading journal feature.
 Handles journal entries, templates, mood tracking, streaks, and AI integration.
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, validator
 from typing import Optional, List, Dict, Any
 from datetime import date
 
 from app.services.journal_service import journal_service
+from app.auth import get_current_user, verify_user_access, AuthenticatedUser
 
 router = APIRouter(prefix="/api/journal", tags=["journal"])
 
@@ -180,6 +181,7 @@ class AIPromptsListResponse(BaseModel):
 async def create_entry(
     user_id: str,
     req: CreateEntryRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Create a new journal entry.
@@ -191,6 +193,9 @@ async def create_entry(
     Returns:
         Created entry
     """
+    # Verify the authenticated user can only create entries for themselves
+    verify_user_access(user_id, current_user)
+
     try:
         entry = await journal_service.create_entry(
             user_id=user_id,
@@ -219,6 +224,7 @@ async def get_entries(
     is_favorite: Optional[bool] = None,
     limit: int = 50,
     offset: int = 0,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get journal entries with filters and pagination.
@@ -237,6 +243,9 @@ async def get_entries(
     Returns:
         List of entries with pagination info
     """
+    # Verify the authenticated user can only access their own data
+    verify_user_access(user_id, current_user)
+
     try:
         result = await journal_service.get_entries(
             user_id=user_id,
@@ -263,6 +272,7 @@ async def get_entries(
 async def get_entry(
     user_id: str,
     entry_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get a single journal entry with linked trades.
@@ -274,6 +284,8 @@ async def get_entry(
     Returns:
         Entry with trade links
     """
+    verify_user_access(user_id, current_user)
+
     try:
         entry = await journal_service.get_entry(user_id, entry_id)
         if not entry:
@@ -290,6 +302,7 @@ async def update_entry(
     user_id: str,
     entry_id: str,
     req: UpdateEntryRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Update a journal entry.
@@ -302,6 +315,8 @@ async def update_entry(
     Returns:
         Updated entry
     """
+    verify_user_access(user_id, current_user)
+
     try:
         # Build update dict with only provided fields
         updates = {}
@@ -334,6 +349,7 @@ async def update_entry(
 async def delete_entry(
     user_id: str,
     entry_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Soft delete a journal entry.
@@ -345,6 +361,8 @@ async def delete_entry(
     Returns:
         Success status
     """
+    verify_user_access(user_id, current_user)
+
     try:
         success = await journal_service.delete_entry(user_id, entry_id)
         if not success:
@@ -360,6 +378,7 @@ async def delete_entry(
 async def toggle_pin(
     user_id: str,
     entry_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Toggle pin status of an entry.
@@ -371,6 +390,8 @@ async def toggle_pin(
     Returns:
         Updated entry with new pin status
     """
+    verify_user_access(user_id, current_user)
+
     try:
         entry = await journal_service.toggle_pin(user_id, entry_id)
         if not entry:
@@ -386,6 +407,7 @@ async def toggle_pin(
 async def toggle_favorite(
     user_id: str,
     entry_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Toggle favorite status of an entry.
@@ -397,6 +419,8 @@ async def toggle_favorite(
     Returns:
         Updated entry with new favorite status
     """
+    verify_user_access(user_id, current_user)
+
     try:
         entry = await journal_service.toggle_favorite(user_id, entry_id)
         if not entry:
@@ -417,6 +441,7 @@ async def link_trades(
     user_id: str,
     entry_id: str,
     req: LinkTradesRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Link trades to a journal entry.
@@ -429,6 +454,8 @@ async def link_trades(
     Returns:
         List of created links
     """
+    verify_user_access(user_id, current_user)
+
     try:
         links = await journal_service.link_trades(
             user_id=user_id,
@@ -446,6 +473,7 @@ async def unlink_trade(
     user_id: str,
     entry_id: str,
     trade_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Unlink a trade from a journal entry.
@@ -458,6 +486,8 @@ async def unlink_trade(
     Returns:
         Success status
     """
+    verify_user_access(user_id, current_user)
+
     try:
         success = await journal_service.unlink_trade(user_id, entry_id, trade_id)
         return {"success": success}
@@ -469,6 +499,7 @@ async def unlink_trade(
 async def get_entries_for_trade(
     user_id: str,
     trade_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get all journal entries linked to a specific trade.
@@ -480,6 +511,8 @@ async def get_entries_for_trade(
     Returns:
         List of linked entries
     """
+    verify_user_access(user_id, current_user)
+
     try:
         entries = await journal_service.get_entries_for_trade(user_id, trade_id)
         return {"entries": entries}
@@ -494,6 +527,7 @@ async def get_entries_for_trade(
 @router.get("/templates", response_model=TemplateListResponse)
 async def get_templates(
     user_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get all templates (system + user's custom templates).
@@ -504,6 +538,8 @@ async def get_templates(
     Returns:
         List of templates
     """
+    verify_user_access(user_id, current_user)
+
     try:
         templates = await journal_service.get_templates(user_id)
         return TemplateListResponse(
@@ -518,6 +554,7 @@ async def get_templates(
 async def create_template(
     user_id: str,
     req: CreateTemplateRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Create a custom template.
@@ -529,6 +566,8 @@ async def create_template(
     Returns:
         Created template
     """
+    verify_user_access(user_id, current_user)
+
     try:
         template = await journal_service.create_template(
             user_id=user_id,
@@ -547,6 +586,7 @@ async def update_template(
     user_id: str,
     template_id: str,
     req: UpdateTemplateRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Update a custom template (cannot update system templates).
@@ -559,6 +599,8 @@ async def update_template(
     Returns:
         Updated template
     """
+    verify_user_access(user_id, current_user)
+
     try:
         updates = {}
         if req.name is not None:
@@ -584,6 +626,7 @@ async def update_template(
 async def delete_template(
     user_id: str,
     template_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Delete a custom template.
@@ -595,6 +638,8 @@ async def delete_template(
     Returns:
         Success status
     """
+    verify_user_access(user_id, current_user)
+
     try:
         success = await journal_service.delete_template(user_id, template_id)
         if not success:
@@ -614,6 +659,7 @@ async def delete_template(
 async def record_mood(
     user_id: str,
     req: RecordMoodRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Record a mood entry.
@@ -625,6 +671,8 @@ async def record_mood(
     Returns:
         Recorded mood
     """
+    verify_user_access(user_id, current_user)
+
     try:
         mood = await journal_service.record_mood(
             user_id=user_id,
@@ -644,6 +692,7 @@ async def get_mood_heatmap(
     user_id: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get mood data formatted for heatmap visualization.
@@ -656,6 +705,8 @@ async def get_mood_heatmap(
     Returns:
         Heatmap data with mood distribution
     """
+    verify_user_access(user_id, current_user)
+
     try:
         result = await journal_service.get_mood_heatmap(user_id, start_date, end_date)
         return MoodHeatmapResponse(**result)
@@ -667,6 +718,7 @@ async def get_mood_heatmap(
 async def get_mood_analytics(
     user_id: str,
     days: int = 30,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get mood analytics and trends.
@@ -678,6 +730,8 @@ async def get_mood_analytics(
     Returns:
         Mood analytics including averages and trends
     """
+    verify_user_access(user_id, current_user)
+
     try:
         result = await journal_service.get_mood_analytics(user_id, days)
         return MoodAnalyticsResponse(**result)
@@ -692,6 +746,7 @@ async def get_mood_analytics(
 @router.get("/streaks", response_model=StreakResponse)
 async def get_streak(
     user_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get user's journaling streak data.
@@ -702,6 +757,8 @@ async def get_streak(
     Returns:
         Streak information
     """
+    verify_user_access(user_id, current_user)
+
     try:
         streak = await journal_service.get_streak(user_id)
         return StreakResponse(**streak)
@@ -712,6 +769,7 @@ async def get_streak(
 @router.post("/streaks/check", response_model=StreakResponse)
 async def check_streak(
     user_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Check and update streak status.
@@ -722,6 +780,8 @@ async def check_streak(
     Returns:
         Updated streak information
     """
+    verify_user_access(user_id, current_user)
+
     try:
         streak = await journal_service.check_and_update_streak(user_id)
         return StreakResponse(**streak)
@@ -736,6 +796,7 @@ async def check_streak(
 @router.get("/ai/prompts", response_model=AIPromptsListResponse)
 async def get_ai_prompts(
     user_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get AI-generated journaling prompts based on recent trades.
@@ -746,6 +807,8 @@ async def get_ai_prompts(
     Returns:
         List of contextual prompts
     """
+    verify_user_access(user_id, current_user)
+
     try:
         prompts = await journal_service.generate_ai_prompts(user_id)
         return AIPromptsListResponse(
@@ -759,6 +822,7 @@ async def get_ai_prompts(
 async def get_journal_context(
     user_id: str,
     limit: int = 5,
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get journal data formatted for AI coach context.
@@ -770,6 +834,8 @@ async def get_journal_context(
     Returns:
         Journal context for coach
     """
+    verify_user_access(user_id, current_user)
+
     try:
         context = await journal_service.get_journal_context_for_coach(user_id, limit)
         return context

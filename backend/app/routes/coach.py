@@ -5,7 +5,7 @@ Enhanced for the AI Trading Coach with proactive features.
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional, List
 from datetime import datetime, timedelta
 
@@ -16,6 +16,7 @@ from app.services.report_generator import ReportGenerator
 from app.services.pattern_detector import PatternDetector
 from app.services.supabase_client import SupabaseClient
 from app.services.supabase_service import SupabaseService
+from app.auth import get_current_user, verify_user_access, AuthenticatedUser
 
 router = APIRouter(prefix="/api/coach", tags=["coach"])
 
@@ -198,6 +199,7 @@ supabase_service = SupabaseService()
 async def create_conversation(
     req: CreateConversationRequest,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Create a new conversation for a user.
@@ -208,6 +210,9 @@ async def create_conversation(
     Returns:
         Conversation ID and creation timestamp
     """
+    # Verify the authenticated user can only create conversations for themselves
+    verify_user_access(req.user_id, current_user)
+
     try:
         conversation_id = await coach_service.create_conversation(req.user_id, db)
 
@@ -226,6 +231,7 @@ async def list_conversations(
     offset: int = 0,
     include_deleted: bool = False,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     List user's conversations.
@@ -239,6 +245,8 @@ async def list_conversations(
     Returns:
         List of conversations with metadata
     """
+    verify_user_access(user_id, current_user)
+
     try:
         result = await coach_service.list_conversations(user_id, db, limit, offset, include_deleted)
         return ConversationListResponse(**result)
@@ -251,6 +259,7 @@ async def get_conversation(
     user_id: str,
     conversation_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get a conversation with all its messages.
@@ -262,6 +271,8 @@ async def get_conversation(
     Returns:
         Conversation with full message history
     """
+    verify_user_access(user_id, current_user)
+
     try:
         result = await coach_service.get_conversation(user_id, conversation_id, db)
         return ConversationResponse(**result)
@@ -277,6 +288,7 @@ async def send_message(
     conversation_id: str,
     req: SendMessageRequest,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Send a message in a conversation and get coach response.
@@ -289,6 +301,8 @@ async def send_message(
     Returns:
         Coach response message
     """
+    verify_user_access(user_id, current_user)
+
     try:
         response_text, metadata = await coach_service.send_message(
             user_id, conversation_id, req.content, db
@@ -314,6 +328,7 @@ async def delete_conversation(
     user_id: str,
     conversation_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Soft delete a conversation.
@@ -325,6 +340,8 @@ async def delete_conversation(
     Returns:
         Success status and deletion timestamp
     """
+    verify_user_access(user_id, current_user)
+
     try:
         await coach_service.delete_conversation(user_id, conversation_id, db)
 
@@ -342,6 +359,7 @@ async def delete_conversation(
 async def get_user_insights(
     user_id: str,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """
     Get coach's learned insights about the user.
@@ -352,6 +370,8 @@ async def get_user_insights(
     Returns:
         Coach insights including trading style, patterns, strengths, weaknesses
     """
+    verify_user_access(user_id, current_user)
+
     try:
         result = await coach_service.get_user_insights(user_id, db)
         return UserInsightsResponse(**result)

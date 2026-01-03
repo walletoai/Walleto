@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional
 from datetime import datetime
 import uuid
 import os
 import httpx
+import re
 
 from app.db import get_db
 from app.models import Trade
+from app.auth import get_current_user, verify_user_access, AuthenticatedUser
 
 router = APIRouter(prefix="/api/trades", tags=["trades"])
 
@@ -27,8 +29,52 @@ class ManualTradeCreate(BaseModel):
     notes: Optional[str] = None
     exchange: Optional[str] = "Manual"
 
+    @validator('symbol')
+    def validate_symbol(cls, v):
+        if not v or len(v) > 50:
+            raise ValueError('Symbol must be 1-50 characters')
+        # Only allow alphanumeric, dash, underscore, slash
+        if not re.match(r'^[A-Za-z0-9/_-]+$', v):
+            raise ValueError('Symbol contains invalid characters')
+        return v.upper()
+
+    @validator('side')
+    def validate_side(cls, v):
+        if v.lower() not in ['long', 'short', 'buy', 'sell']:
+            raise ValueError('Side must be long, short, buy, or sell')
+        return v.lower()
+
+    @validator('entry', 'exit', 'size', 'fees')
+    def validate_positive(cls, v):
+        if v < 0:
+            raise ValueError('Value must be non-negative')
+        return v
+
+    @validator('leverage')
+    def validate_leverage(cls, v):
+        if v < 1 or v > 200:
+            raise ValueError('Leverage must be between 1 and 200')
+        return v
+
+    @validator('notes')
+    def validate_notes(cls, v):
+        if v and len(v) > 5000:
+            raise ValueError('Notes must be under 5000 characters')
+        return v
+
+    @validator('exchange')
+    def validate_exchange(cls, v):
+        if v and len(v) > 50:
+            raise ValueError('Exchange name must be under 50 characters')
+        return v
+
+
 @router.post("/manual")
-def create_manual_trade(trade: ManualTradeCreate, db: Session = Depends(get_db)):
+def create_manual_trade(
+    trade: ManualTradeCreate,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     try:
         # Parse date
         try:
@@ -37,12 +83,8 @@ def create_manual_trade(trade: ManualTradeCreate, db: Session = Depends(get_db))
             # Try parsing YYYY-MM-DD if ISO fails
             trade_date = datetime.strptime(trade.date, "%Y-%m-%d")
 
-        # Create trade record
-        # We'll use a hardcoded user_id for now since the upload script doesn't provide one
-        # In a real app, this would come from auth
-        # user_id = "user_2pL..." # Placeholder or default user
-        # Using a valid UUID to satisfy DB constraints (assuming no FK constraint for now, or this is a test user)
-        user_id = "d1017b68-c062-4b7b-ba42-331b928fd645" 
+        # Use authenticated user's ID
+        user_id = current_user.id
 
         new_trade = Trade(
             id=str(uuid.uuid4()),
@@ -57,7 +99,7 @@ def create_manual_trade(trade: ManualTradeCreate, db: Session = Depends(get_db))
             fees=trade.fees,
             pnl_usd=trade.pnl,
             pnl_pct=trade.pnl_percent,
-            setup_id=None, # setup_id expects UUID, but we have a name. Setting to None.
+            setup_id=None,
             notes=f"{trade.notes} | Setup: {trade.setup_name}" if trade.setup_name else trade.notes,
             exchange=trade.exchange
         )
@@ -73,14 +115,28 @@ def create_manual_trade(trade: ManualTradeCreate, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{user_id}")
-def get_user_trades(user_id: str, db: Session = Depends(get_db)):
+def get_user_trades(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Get all trades for a user"""
+    # Verify the authenticated user can only access their own data
+    verify_user_access(user_id, current_user)
+
     trades = db.query(Trade).filter(Trade.user_id == user_id).all()
     return trades
 
 @router.delete("/{user_id}")
-def delete_all_user_trades(user_id: str, db: Session = Depends(get_db)):
+def delete_all_user_trades(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Delete all trades for a user"""
+    # Verify the authenticated user can only delete their own data
+    verify_user_access(user_id, current_user)
+
     try:
         # Query all trades for the user
         trades = db.query(Trade).filter(Trade.user_id == user_id).all()
@@ -97,8 +153,15 @@ def delete_all_user_trades(user_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/{user_id}/sync-to-supabase")
-async def sync_trades_to_supabase(user_id: str, db: Session = Depends(get_db)):
+async def sync_trades_to_supabase(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Sync trades from FastAPI DB to Supabase"""
+    # Verify the authenticated user can only sync their own data
+    verify_user_access(user_id, current_user)
+
     try:
         print(f"[SYNC-TO-SUPABASE] Starting sync for user {user_id}")
         # Get all trades from FastAPI DB

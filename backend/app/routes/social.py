@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, desc, or_
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from ..db import get_db
 from ..models import SavedStrategy, UserProfile, Post, Like, Follow, Comment
+from ..auth import get_current_user, verify_user_access, AuthenticatedUser
 
 router = APIRouter(prefix="/api/social", tags=["social"])
 
@@ -118,8 +119,14 @@ def get_feed(user_id: Optional[str] = None, db: Session = Depends(get_db)):
     return response
 
 @router.post("/posts")
-def create_post(post: PostCreate, user_id: str, db: Session = Depends(get_db)):
+def create_post(
+    post: PostCreate,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     check_moderation(post.content)
+
+    user_id = current_user.id
 
     # Ensure user profile exists before creating post
     user_profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
@@ -140,7 +147,13 @@ def create_post(post: PostCreate, user_id: str, db: Session = Depends(get_db)):
     return {"status": "created", "id": new_post.id}
 
 @router.post("/posts/{id}/like")
-def like_post(id: int, user_id: str, db: Session = Depends(get_db)):
+def like_post(
+    id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
+    user_id = current_user.id
+
     # Check if already liked
     existing = db.query(Like).filter(Like.post_id == id, Like.user_id == user_id).first()
     post = db.query(Post).filter(Post.id == id).first()
@@ -199,40 +212,57 @@ def get_user_profile(target_user_id: str, current_user_id: Optional[str] = None,
     }
 
 @router.post("/follow/{target_user_id}")
-def follow_user(target_user_id: str, user_id: str, db: Session = Depends(get_db)):
+def follow_user(
+    target_user_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
+    user_id = current_user.id
+
     if target_user_id == user_id:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
-        
+
     target_profile = db.query(UserProfile).filter(UserProfile.user_id == target_user_id).first()
     is_private = getattr(target_profile, 'is_private', 0) if target_profile else 0
-    
+
     existing = db.query(Follow).filter(Follow.follower_id == user_id, Follow.following_id == target_user_id).first()
     if existing:
         # Unfollow
         db.delete(existing)
         db.commit()
         return {"status": "unfollowed"}
-    
+
     status = 'pending' if is_private else 'accepted'
     new_follow = Follow(follower_id=user_id, following_id=target_user_id, status=status)
     db.add(new_follow)
     db.commit()
-    
+
     return {"status": "followed", "state": status}
 
 @router.post("/settings/privacy")
-def toggle_privacy(user_id: str, is_private: bool, db: Session = Depends(get_db)):
+def toggle_privacy(
+    is_private: bool,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
+    user_id = current_user.id
+
     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
     if not profile:
         profile = UserProfile(user_id=user_id)
         db.add(profile)
-    
+
     profile.is_private = 1 if is_private else 0
     db.commit()
     return {"status": "updated", "is_private": is_private}
 
 @router.get("/requests/pending")
-def get_pending_requests(user_id: str, db: Session = Depends(get_db)):
+def get_pending_requests(
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
+    user_id = current_user.id
+
     # Get all pending follow requests where user_id is the target (following_id)
     requests = db.query(Follow, UserProfile).join(
         UserProfile, Follow.follower_id == UserProfile.user_id
@@ -240,7 +270,7 @@ def get_pending_requests(user_id: str, db: Session = Depends(get_db)):
         Follow.following_id == user_id,
         Follow.status == 'pending'
     ).all()
-    
+
     return [{
         "follower_id": f.follower_id,
         "username": p.username,
@@ -249,17 +279,24 @@ def get_pending_requests(user_id: str, db: Session = Depends(get_db)):
     } for f, p in requests]
 
 @router.post("/requests/respond")
-def respond_follow_request(user_id: str, follower_id: str, action: str, db: Session = Depends(get_db)):
+def respond_follow_request(
+    follower_id: str,
+    action: str,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
+    user_id = current_user.id
+
     # action: 'accept' or 'reject'
     request = db.query(Follow).filter(
         Follow.follower_id == follower_id,
         Follow.following_id == user_id,
         Follow.status == 'pending'
     ).first()
-    
+
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
-        
+
     if action == 'accept':
         request.status = 'accepted'
         db.commit()
@@ -339,7 +376,14 @@ def get_user_posts(target_user_id: str, current_user_id: Optional[str] = None, d
     return response
 
 @router.post("/posts/{post_id}/comments", response_model=CommentResponse)
-def create_comment(post_id: int, comment: CommentCreate, user_id: str, db: Session = Depends(get_db)):
+def create_comment(
+    post_id: int,
+    comment: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
+    user_id = current_user.id
+
     check_moderation(comment.content)
 
     # Verify post exists
@@ -362,10 +406,10 @@ def create_comment(post_id: int, comment: CommentCreate, user_id: str, db: Sessi
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
-    
+
     # Get user info for response
     user_profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
-    
+
     return {
         "id": new_comment.id,
         "user_id": new_comment.user_id,
@@ -393,8 +437,13 @@ def get_comments(post_id: int, db: Session = Depends(get_db)):
     } for c, p in comments]
 
 @router.get("/following")
-def get_following_list(user_id: str, db: Session = Depends(get_db)):
+def get_following_list(
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Get list of user IDs that the current user is following"""
+    user_id = current_user.id
+
     following = db.query(Follow.following_id).filter(
         Follow.follower_id == user_id,
         Follow.status == 'accepted'
@@ -402,8 +451,14 @@ def get_following_list(user_id: str, db: Session = Depends(get_db)):
     return [f.following_id for f in following]
 
 @router.delete("/posts/{post_id}")
-def delete_post(post_id: int, user_id: str, db: Session = Depends(get_db)):
+def delete_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Delete a post (only the owner can delete)"""
+    user_id = current_user.id
+
     post = db.query(Post).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")

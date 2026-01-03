@@ -1,14 +1,32 @@
 from dotenv import load_dotenv
 load_dotenv()  # Load .env before any other imports
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from app import models, db
 from .routes import backtest, exchanges, profile, calendar, upload, social, analytics, trades, coach, blofin_sync, binance_sync, bybit_sync, hyperliquid_sync, leverage_settings, journal, invite
 from .services.sync_scheduler import start_scheduler, stop_scheduler
 import logging
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses"""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        # Cache control for API responses
+        if not request.url.path.startswith("/static"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        return response
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -59,6 +77,9 @@ origins = [
     "https://app.walleto.ai",
     "https://api.walleto.ai",
 ]
+
+# Add security headers middleware first (executes last)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

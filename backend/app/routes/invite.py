@@ -74,8 +74,11 @@ def generate_invite_code(length: int = 8) -> str:
 
 
 def verify_admin(admin_key: str) -> bool:
-    """Verify admin access with a simple key check"""
-    expected_key = os.getenv("ADMIN_API_KEY", "walleto-admin-secret-2024")
+    """Verify admin access with a secure key check"""
+    expected_key = os.getenv("ADMIN_API_KEY")
+    if not expected_key:
+        # No admin key configured - admin endpoints are disabled
+        return False
     return admin_key == expected_key
 
 

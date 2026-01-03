@@ -2,11 +2,14 @@
 Leverage settings endpoints - allows users to set default leverage per symbol
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, validator
 from typing import Optional, List
 import os
+import re
 from supabase import create_client, Client
+
+from app.auth import get_current_user, verify_user_access, AuthenticatedUser
 
 router = APIRouter(prefix="/api/leverage-settings", tags=["leverage-settings"])
 
@@ -26,6 +29,26 @@ class LeverageSetting(BaseModel):
     leverage: float
     exchange: str  # e.g., 'blofin', 'binance', 'bybit', etc.
 
+    @validator('symbol')
+    def validate_symbol(cls, v):
+        if not v or len(v) > 50:
+            raise ValueError('Symbol must be 1-50 characters')
+        if not re.match(r'^[A-Za-z0-9/_-]+$', v):
+            raise ValueError('Symbol contains invalid characters')
+        return v.upper()
+
+    @validator('leverage')
+    def validate_leverage(cls, v):
+        if v < 1 or v > 200:
+            raise ValueError('Leverage must be between 1 and 200')
+        return v
+
+    @validator('exchange')
+    def validate_exchange(cls, v):
+        if not v or len(v) > 50:
+            raise ValueError('Exchange must be 1-50 characters')
+        return v.lower()
+
 
 class LeverageSettingResponse(BaseModel):
     """Response with leverage setting"""
@@ -39,8 +62,14 @@ class LeverageSettingResponse(BaseModel):
 
 
 @router.get("/{user_id}", response_model=List[LeverageSettingResponse])
-async def get_leverage_settings(user_id: str) -> List[LeverageSettingResponse]:
+async def get_leverage_settings(
+    user_id: str,
+    current_user: AuthenticatedUser = Depends(get_current_user)
+) -> List[LeverageSettingResponse]:
     """Get all leverage settings for a user"""
+    # Verify the authenticated user can only access their own data
+    verify_user_access(user_id, current_user)
+
     if not supabase:
         raise HTTPException(status_code=503, detail="Supabase client not initialized")
     try:
@@ -52,8 +81,15 @@ async def get_leverage_settings(user_id: str) -> List[LeverageSettingResponse]:
 
 
 @router.post("/{user_id}")
-async def set_leverage_setting(user_id: str, setting: LeverageSetting):
+async def set_leverage_setting(
+    user_id: str,
+    setting: LeverageSetting,
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Set or update leverage setting for a symbol on a specific exchange"""
+    # Verify the authenticated user can only modify their own data
+    verify_user_access(user_id, current_user)
+
     if not supabase:
         raise HTTPException(status_code=503, detail="Supabase client not initialized")
     try:
@@ -91,8 +127,16 @@ async def set_leverage_setting(user_id: str, setting: LeverageSetting):
 
 
 @router.delete("/{user_id}/{exchange}/{symbol}")
-async def delete_leverage_setting(user_id: str, exchange: str, symbol: str):
+async def delete_leverage_setting(
+    user_id: str,
+    exchange: str,
+    symbol: str,
+    current_user: AuthenticatedUser = Depends(get_current_user)
+):
     """Delete leverage setting for a symbol on a specific exchange (reset to default 1x)"""
+    # Verify the authenticated user can only delete their own data
+    verify_user_access(user_id, current_user)
+
     if not supabase:
         raise HTTPException(status_code=503, detail="Supabase client not initialized")
     try:
